@@ -10,6 +10,10 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -18,24 +22,41 @@ public class SecurityConfig {
     private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     @Value("${frontend.url}")
     private String frontendUrl;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> {
-                    cors.configurationSource(source -> {
-                        CorsConfiguration configuration = new CorsConfiguration();
-                        configuration.addAllowedOrigin("*");
-                        return configuration;
-                    });
+                    cors.configurationSource(corsConfigurationSource());
                 })
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests( auth -> {
+                .authorizeHttpRequests(auth -> {
                     auth.anyRequest().authenticated();
                 })
                 .oauth2Login(oauth2 -> {
-                    oauth2.loginPage(frontendUrl+"/login");
+                    oauth2.loginPage(frontendUrl + "/login");
+
                     oauth2.successHandler(oAuth2LoginSuccessHandler);
+                }).logout((config) -> {
+                    config.deleteCookies("JSESSIONID");
+                    config.clearAuthentication(true);
+                    config.logoutUrl("/logout").logoutSuccessUrl(frontendUrl).permitAll();
+                    config.invalidateHttpSession(true);
                 });
+
         return http.build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5000"));
+        configuration.setAllowedMethods(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
