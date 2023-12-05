@@ -1,10 +1,10 @@
 package com.sheru.SSOTest.Config;
 
+import jakarta.servlet.http.Cookie;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,6 +25,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .cors(cors -> {
                     cors.configurationSource(corsConfigurationSource());
@@ -38,8 +39,17 @@ public class SecurityConfig {
 
                     oauth2.successHandler(oAuth2LoginSuccessHandler);
                 }).logout((config) -> {
-                    config.deleteCookies("JSESSIONID");
+                    config.invalidateHttpSession(true);
                     config.clearAuthentication(true);
+                    config.addLogoutHandler(((request, response, authentication) -> {
+                        for (Cookie cookie : request.getCookies()) {
+                            String cookieName = cookie.getName();
+                            Cookie cookieToDelete = new Cookie(cookieName, null);
+                            cookieToDelete.setMaxAge(0);
+                            response.addCookie(cookieToDelete);
+                        }
+
+                    }));
                     config.logoutUrl("/logout").logoutSuccessUrl(frontendUrl).permitAll();
                     config.invalidateHttpSession(true);
                 });
@@ -59,4 +69,6 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+
 }
